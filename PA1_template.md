@@ -265,34 +265,196 @@ g+ geom_line(color = "green") +
 
 ## Imputing missing values
 
-The code for the strategy to impute missing data was worked on in the third step of the first part
-
-## Are there differences in activity patterns between weekdays and weekends?
-
-Firts we do an table with steps and dates
+We load the data again
 
 
 ```r
-can<- cbind(activity$steps, activity$date)
-can<- as.data.frame(can)
-can<- mutate(can, day= weekdays(activity$date))
-can<- group_by(can, day)
+activity<- read.csv("/Users/johnsprockel/Documents/GitHub/ProgrammingAssignment2/activity.csv")
+activity<- tbl_df(activity)
 
-z<- summarise(can, mean = mean (V1))
+activity$date<- as.Date(as.character(activity$date))
+str(activity$steps)
+```
+
+```
+##  int [1:17568] NA NA NA NA NA NA NA NA NA NA ...
+```
+
+1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs).
+
+There are 2304 NA's
+
+2. I decide to filling in all of the missing values in the data set by use the mean for that  5-minute interval.
+
+3. Next, I create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+
+```r
+tt<- activity %>%
+  group_by(interval) %>%
+	summarise(mean_steps = mean(steps, na.rm = TRUE))
 ```
 
 ```
 ## `summarise()` ungrouping output (override with `.groups` argument)
 ```
 
-We proceed to graph the relationship of the different days of the week.
+```r
+for (i in 1:length(activity$steps)){
+  if(is.na(activity$steps[i])){
+    activity$steps[i]<- tt$mean_steps[match(activity$interval[i], tt$interval)]
+  }
+}
+```
+
+4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
 
 
 ```r
-g<-ggplot(z, aes(day, mean)) 
-g+ geom_bar(stat="identity", fill = "steelblue") +
-  ggtitle("Mean in Total Number of Steps Taken by Weekday") +
-  xlab("Weekday") + ylab("Steps")
+activity<- group_by(activity, date)
+
+x<- summarise(activity, sum= sum(steps), mean = mean (steps), median = median(steps))
 ```
 
-![](PA1_template_files/figure-html/unnamed-chunk-13-1.png)<!-- -->
+```
+## `summarise()` ungrouping output (override with `.groups` argument)
+```
+
+```r
+x
+```
+
+```
+## # A tibble: 61 x 4
+##    date          sum   mean median
+##    <date>      <dbl>  <dbl>  <dbl>
+##  1 2012-10-01 10766. 37.4     34.1
+##  2 2012-10-02   126   0.438    0  
+##  3 2012-10-03 11352  39.4      0  
+##  4 2012-10-04 12116  42.1      0  
+##  5 2012-10-05 13294  46.2      0  
+##  6 2012-10-06 15420  53.5      0  
+##  7 2012-10-07 11015  38.2      0  
+##  8 2012-10-08 10766. 37.4     34.1
+##  9 2012-10-09 12811  44.5      0  
+## 10 2012-10-10  9900  34.4      0  
+## # … with 51 more rows
+```
+
+The total steps of each day are plotted.
+
+
+```r
+g<-ggplot(x, aes(date, sum)) 
+g+ geom_bar(stat="identity", fill = "red") +
+  ggtitle("Total Number of Steps Taken Each Day") +
+  xlab("Date") + ylab("Sum Steps")
+```
+
+![](PA1_template_files/figure-html/unnamed-chunk-15-1.png)<!-- -->
+
+The mean of total steps of each day are plotted.
+
+
+```r
+g<-ggplot(x, aes(date, mean)) 
+g+ geom_bar(stat="identity", fill = "steelblue") +
+  ggtitle("Mean of Total Number of Steps Taken Each Day") +
+  xlab("Date") + ylab("Mean Steps")
+```
+
+![](PA1_template_files/figure-html/unnamed-chunk-16-1.png)<!-- -->
+
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+Firts I create a new column with a factor variable in the dataset with the days of the week, then clasified in two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
+
+
+```r
+activity<- read.csv("/Users/johnsprockel/Documents/GitHub/ProgrammingAssignment2/activity.csv")
+activity<- tbl_df(activity)
+activity<- activity[!is.na(activity$steps),]
+activity$date<- as.Date(as.character(activity$date))
+
+activity<- mutate(activity, day= weekdays(activity$date))
+activity$day<- gsub("Saturday", "Weekend", activity$day)
+activity$day<- gsub("Sunday", "Weekend", activity$day)
+activity$day<- gsub("Friday", "Weekday", activity$day)
+activity$day<- gsub("Monday", "Weekday", activity$day)
+activity$day<- gsub("Thursday", "Weekday", activity$day)
+activity$day<- gsub("Tuesday", "Weekday", activity$day)
+activity$day<- gsub("Wednesday", "Weekday", activity$day)
+```
+
+Next I create two tables with the average number of steps taken in weekdays and weekends, by interval, that finally bind in a final database (db)
+
+
+```r
+WD<- cbind(unique (activity$interval), "Weekday", 0)
+colnames(WD)<- c("interval", "day", "steps")
+WD<- as.data.frame(WD)
+WD[,1] <- as.numeric(WD[,1])
+WD[,3] <- as.numeric(WD[,3])
+
+WE<- cbind(unique (activity$interval), "Weekend", 0)
+colnames(WE)<- c("interval", "day", "steps")
+WE<- as.data.frame(WE)
+WE[,1] <- as.numeric(WE[,1])
+WE[,3] <- as.numeric(WE[,3])
+
+for (i in 1:288){
+  WD$steps[i]<- mean(activity$steps[activity$interval[]==WD$interval[i]] & activity$day[]== "Weekday")
+  WE$steps[i]<- mean(activity$steps[activity$interval[]==WE$interval[i]] & activity$day[]== "Weekend")
+}
+head(WD)
+```
+
+```
+##   interval     day      steps
+## 1        0 Weekday 0.04160115
+## 2        5 Weekday 0.01382338
+## 3       10 Weekday 0.01382338
+## 4       15 Weekday 0.01382338
+## 5       20 Weekday 0.01388889
+## 6       25 Weekday 0.05562107
+```
+
+```r
+head(WE)
+```
+
+```
+##   interval     day       steps
+## 1        0 Weekend 0.015002621
+## 2        5 Weekend 0.005044549
+## 3       10 Weekend 0.005044549
+## 4       15 Weekend 0.005044549
+## 5       20 Weekend 0.004979036
+## 6       25 Weekend 0.019850629
+```
+
+```r
+db<- rbind(WD, WE)
+str(db)
+```
+
+```
+## 'data.frame':	576 obs. of  3 variables:
+##  $ interval: num  0 5 10 15 20 25 30 35 40 45 ...
+##  $ day     : chr  "Weekday" "Weekday" "Weekday" "Weekday" ...
+##  $ steps   : num  0.0416 0.0138 0.0138 0.0138 0.0139 ...
+```
+
+We proceed to graph the relationship of the different steps by interval in weekdays and weekends. 
+
+
+```r
+g<-ggplot(db, aes(interval, steps)) 
+g+ geom_line(color = "steelblue") +
+  ggtitle("Mean in Total Number of Steps Taken by Weekday") +
+  xlab("Interval") + ylab("Sum Steps")+
+  facet_grid(day~.)
+```
+
+![](PA1_template_files/figure-html/unnamed-chunk-19-1.png)<!-- -->

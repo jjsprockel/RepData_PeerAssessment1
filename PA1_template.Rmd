@@ -130,26 +130,119 @@ g+ geom_line(color = "green") +
 
 ## Imputing missing values
 
-The code for the strategy to impute missing data was worked on in the third step of the first part
+We load the data again
+
+```{r}
+activity<- read.csv("/Users/johnsprockel/Documents/GitHub/ProgrammingAssignment2/activity.csv")
+activity<- tbl_df(activity)
+
+activity$date<- as.Date(as.character(activity$date))
+str(activity$steps)
+```
+
+1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs).
+
+There are 2304 NA's
+
+2. I decide to filling in all of the missing values in the data set by use the mean for that  5-minute interval.
+
+3. Next, I create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```{r}
+tt<- activity %>%
+  group_by(interval) %>%
+	summarise(mean_steps = mean(steps, na.rm = TRUE))
+
+for (i in 1:length(activity$steps)){
+  if(is.na(activity$steps[i])){
+    activity$steps[i]<- tt$mean_steps[match(activity$interval[i], tt$interval)]
+  }
+}
+
+```
+
+4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+```{r}
+activity<- group_by(activity, date)
+
+x<- summarise(activity, sum= sum(steps), mean = mean (steps), median = median(steps))
+x
+```
+
+The total steps of each day are plotted.
+
+```{r, fig.height=4}
+g<-ggplot(x, aes(date, sum)) 
+g+ geom_bar(stat="identity", fill = "red") +
+  ggtitle("Total Number of Steps Taken Each Day") +
+  xlab("Date") + ylab("Sum Steps")
+```
+
+The mean of total steps of each day are plotted.
+
+```{r, fig.height=4}
+g<-ggplot(x, aes(date, mean)) 
+g+ geom_bar(stat="identity", fill = "steelblue") +
+  ggtitle("Mean of Total Number of Steps Taken Each Day") +
+  xlab("Date") + ylab("Mean Steps")
+```
+
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
-Firts we do an table with steps and dates
+Firts I create a new column with a factor variable in the dataset with the days of the week, then clasified in two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
 
 ```{r}
-can<- cbind(activity$steps, activity$date)
-can<- as.data.frame(can)
-can<- mutate(can, day= weekdays(activity$date))
-can<- group_by(can, day)
+activity<- read.csv("/Users/johnsprockel/Documents/GitHub/ProgrammingAssignment2/activity.csv")
+activity<- tbl_df(activity)
+activity<- activity[!is.na(activity$steps),]
+activity$date<- as.Date(as.character(activity$date))
 
-z<- summarise(can, mean = mean (V1))
+activity<- mutate(activity, day= weekdays(activity$date))
+activity$day<- gsub("Saturday", "Weekend", activity$day)
+activity$day<- gsub("Sunday", "Weekend", activity$day)
+activity$day<- gsub("Friday", "Weekday", activity$day)
+activity$day<- gsub("Monday", "Weekday", activity$day)
+activity$day<- gsub("Thursday", "Weekday", activity$day)
+activity$day<- gsub("Tuesday", "Weekday", activity$day)
+activity$day<- gsub("Wednesday", "Weekday", activity$day)
 ```
 
-We proceed to graph the relationship of the different days of the week.
+Next I create two tables with the average number of steps taken in weekdays and weekends, by interval, that finally bind in a final database (db)
 
 ```{r}
-g<-ggplot(z, aes(day, mean)) 
-g+ geom_bar(stat="identity", fill = "steelblue") +
+
+WD<- cbind(unique (activity$interval), "Weekday", 0)
+colnames(WD)<- c("interval", "day", "steps")
+WD<- as.data.frame(WD)
+WD[,1] <- as.numeric(WD[,1])
+WD[,3] <- as.numeric(WD[,3])
+
+WE<- cbind(unique (activity$interval), "Weekend", 0)
+colnames(WE)<- c("interval", "day", "steps")
+WE<- as.data.frame(WE)
+WE[,1] <- as.numeric(WE[,1])
+WE[,3] <- as.numeric(WE[,3])
+
+for (i in 1:288){
+  WD$steps[i]<- mean(activity$steps[activity$interval[]==WD$interval[i]] & activity$day[]== "Weekday")
+  WE$steps[i]<- mean(activity$steps[activity$interval[]==WE$interval[i]] & activity$day[]== "Weekend")
+}
+head(WD)
+
+head(WE)
+
+db<- rbind(WD, WE)
+str(db)
+```
+
+We proceed to graph the relationship of the different steps by interval in weekdays and weekends. 
+
+```{r}
+g<-ggplot(db, aes(interval, steps)) 
+g+ geom_line(color = "steelblue") +
   ggtitle("Mean in Total Number of Steps Taken by Weekday") +
-  xlab("Weekday") + ylab("Steps")
+  xlab("Interval") + ylab("Sum Steps")+
+  facet_grid(day~.)
 ```
